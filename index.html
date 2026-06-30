@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#2A5740" />
+<meta name="description" content="Connection Explorer — segment and search your professional connections by industry, function, seniority, and relationship strength. By Mandala Sustainable Solutions." />
+<title>Connection Explorer · Mandala</title>
+<style>
+  body { margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+  #status { padding: 40px; text-align: center; color: #3D5A3D; }
+  #status.error { color: #c00; font-family: monospace; white-space: pre-wrap; text-align: left; }
+</style>
+</head>
+<body>
+<div id="root"><div id="status">Loading React\u2026</div></div>
+
+<script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+
+<script>
+  document.getElementById("status").textContent = "Compiling app\u2026";
+  window.addEventListener("error", function(e) {
+    var s = document.getElementById("status");
+    if (s) {
+      s.className = "error";
+      s.textContent = "JS ERROR: " + e.message + "\n\n" + (e.error && e.error.stack ? e.error.stack : "(no stack)");
+    }
+  });
+</script>
+
+<script type="text/babel" data-presets="react">
+(function() {
+const { useState, useMemo, useCallback, useEffect } = React;
+
+
+// ── Company → Industry lookup (takes priority over keyword matching) ─────
+const COMPANY_INDUSTRY = {
+  // Chemicals / Materials
+  "dupont": "Chemicals / Materials", "the chemours company": "Chemicals / Materials",
+  "natureworks": "Chemicals / Materials", "celanese": "Chemicals / Materials",
+  "dow": "Chemicals / Materials", "3m": "Chemicals / Materials",
+  "basf": "Chemicals / Materials", "arkema": "Chemicals / Materials",
+  "solvay": "Chemicals / Materials", "syensqo": "Chemicals / Materials",
+  "solenis": "Chemicals / Materials", "henkel": "Chemicals / Materials",
+  "iff": "Chemicals / Materials", "arclin": "Chemicals / Materials",
+  "reju": "Chemicals / Materials", "w. l. gore & associates": "Chemicals / Materials",
+  "axalta": "Chemicals / Materials", "kordsa": "Chemicals / Materials",
+  "the lubrizol corporation": "Chemicals / Materials", "pq corporation": "Chemicals / Materials",
+  "quaker houghton": "Chemicals / Materials", "eastman": "Chemicals / Materials",
+  "fmc corporation": "Chemicals / Materials", "mitsubishi chemical group": "Chemicals / Materials",
+  "ecolab": "Chemicals / Materials", "ashland": "Chemicals / Materials",
+  "avient corporation": "Chemicals / Materials", "ppg": "Chemicals / Materials",
+  "akzonobel": "Chemicals / Materials", "dsm-firmenich": "Chemicals / Materials",
+  "trinseo": "Chemicals / Materials", "corning incorporated": "Chemicals / Materials",
+  "w. r. grace": "Chemicals / Materials", "cj biomaterials, inc.": "Chemicals / Materials",
+  "draslovka": "Chemicals / Materials", "praj industries": "Chemicals / Materials",
+  "ultra-poly corporation": "Chemicals / Materials", "solstice advanced materials": "Chemicals / Materials",
+  "kuraray europe gmbh": "Chemicals / Materials", "the lycra company": "Chemicals / Materials",
+  "univar solutions": "Chemicals / Materials", "lyten": "Chemicals / Materials",
+  "neograf solutions, llc": "Chemicals / Materials", "roquette": "Chemicals / Materials",
+  "fralock": "Chemicals / Materials", "greene tweed": "Chemicals / Materials",
+  "sealed air corporation": "Chemicals / Materials",
+
+  // Semiconductors / Electronics
+  "qnity": "Semiconductors", "qnity electronics": "Semiconductors",
+  "laird performance materials": "Semiconductors", "rogers corporation": "Semiconductors",
+  "intel corporation": "Semiconductors", "applied materials": "Semiconductors",
+  "applied materials india": "Semiconductors", "lam research": "Semiconductors",
+  "insulectro": "Semiconductors", "insulectro printed electronics": "Semiconductors",
+  "ttm technologies": "Semiconductors", "macdermid alpha electronics solutions": "Semiconductors",
+  "keysight technologies": "Semiconductors", "agilent technologies": "Semiconductors",
+  "nvidia": "Semiconductors", "isola group": "Semiconductors",
+  "3d glass solutions, inc.": "Semiconductors", "summit interconnect": "Semiconductors",
+  "pcea-printed circuit engineering association": "Semiconductors",
+  "cci eurolam group": "Semiconductors", "esko": "Semiconductors",
+  "broadcom": "Semiconductors", "broadcom inc.": "Semiconductors",
+
+  // Biotech / Health
+  "lonza": "Biotech / Health", "iqvia": "Biotech / Health",
+  "johnson & johnson": "Biotech / Health",
+  "thermo fisher scientific": "Biotech / Health", "medtronic": "Biotech / Health",
+  "arcus biosciences": "Biotech / Health", "bionade": "Biotech / Health",
+  "biomade": "Biotech / Health",
+
+  // Pharma
+  "astrazeneca": "Pharma", "bristol myers squibb": "Pharma",
+  "pfizer": "Pharma",
+  "west pharmaceutical services": "Pharma", "zealand pharma": "Pharma",
+  "mallinckrodt pharmaceuticals": "Pharma", "vertex pharmaceuticals": "Pharma",
+  "emcure pharmaceuticals limited": "Pharma", "aurobindo pharma ltd": "Pharma",
+  "us pharmacopeia": "Pharma", "wilmington pharmatech company llc": "Pharma",
+  "maiva pharma pvt ltd": "Pharma",
+
+  // Software / Tech
+  "microsoft": "Software / Tech", "apple": "Software / Tech",
+  "cisco": "Software / Tech", "meta": "Software / Tech",
+  "google": "Software / Tech", "amazon": "Software / Tech",
+  "amazon web services (aws)": "Software / Tech", "salesforce": "Software / Tech",
+  "servicenow": "Software / Tech", "atlassian": "Software / Tech",
+  "oracle": "Software / Tech", "adobe": "Software / Tech",
+  "sap": "Software / Tech", "hp": "Software / Tech",
+  "hewlett packard enterprise": "Software / Tech", "ibm": "Software / Tech",
+  "intuit": "Software / Tech", "comcast": "Software / Tech",
+  "esko": "Software / Tech", "capgemini": "Software / Tech",
+
+  // Energy / Cleantech
+  "tesla": "Energy / Cleantech", "hero future energies": "Energy / Cleantech",
+  "johnson controls": "Energy / Cleantech", "schneider electric": "Energy / Cleantech",
+  "trane technologies": "Energy / Cleantech", "general motors": "Energy / Cleantech",
+
+  // Finance / Fintech
+  "american express": "Finance / Fintech", "jpmorgan chase & co.": "Finance / Fintech",
+  "morgan stanley": "Finance / Fintech", "bank of america": "Finance / Fintech",
+  "wells fargo": "Finance / Fintech", "capital one": "Finance / Fintech",
+  "oppenheimer & co. inc.": "Finance / Fintech", "sk capital partners": "Finance / Fintech",
+  "bain capital": "Finance / Fintech", "partners group": "Finance / Fintech",
+  "osborne partners capital management, llc": "Finance / Fintech",
+
+  // Venture / Investment
+  "engine ventures": "Venture / Investment", "bison ventures": "Venture / Investment",
+  "gc ventures": "Venture / Investment", "circulate capital": "Venture / Investment",
+  "nassau street partners": "Venture / Investment",
+
+  // Consulting
+  "frost & sullivan": "Consulting", "atheneum": "Consulting",
+  "marketsandmarkets™": "Consulting", "dialectica": "Consulting",
+  "deloitte": "Consulting", "bain & company": "Consulting",
+  "boston consulting group (bcg)": "Consulting", "mckinsey & company": "Consulting",
+  "kpmg us": "Consulting", "abc consultants": "Consulting",
+  "latentview analytics": "Consulting", "latentview": "Consulting",
+  "burk technoeconomics": "Consulting", "tata consultancy services": "Consulting",
+  "orion innovation": "Consulting",
+
+  // Recruiting / HR
+  "korn ferry": "Recruiting / HR", "russell reynolds associates": "Recruiting / HR",
+  "spencer stuart": "Recruiting / HR", "boyden": "Recruiting / HR",
+  "pacific international executive search": "Recruiting / HR",
+  "maxima global executive search": "Recruiting / HR",
+  "boaz partners, llc": "Recruiting / HR", "dhr global": "Recruiting / HR",
+
+  // Manufacturing / Ops
+  "lockheed martin": "Manufacturing / Ops",
+  "amcor": "Manufacturing / Ops", "cornerstone building brands": "Manufacturing / Ops",
+  "international paper": "Manufacturing / Ops", "general motors": "Manufacturing / Ops",
+  "tsubaki nakashima co., ltd": "Manufacturing / Ops",
+  "sealed air corporation": "Manufacturing / Ops",
+
+  // Consumer / Retail
+  "procter & gamble": "Consumer / Retail", "l'oréal": "Consumer / Retail",
+  "lululemon": "Consumer / Retail", "mars": "Consumer / Retail",
+  "cargill": "Consumer / Retail", "pepsi": "Consumer / Retail",
+  "pepsico": "Consumer / Retail", "eileen fisher, inc.": "Consumer / Retail",
+
+  // Academia / Research
+  "indian institute of technology, madras": "Academia / Research",
+  "university of colorado boulder": "Academia / Research",
+  "berkeley lab": "Academia / Research",
+  "iit madras foundation": "Academia / Research",
+  "iit madras alumni association": "Academia / Research",
+  "stanford university": "Academia / Research",
+  "harvard university": "Academia / Research",
+  "center for astrophysics | harvard & smithsonian": "Academia / Research",
+  "drexel university": "Academia / Research",
+  "university of delaware": "Academia / Research",
+  "corteva agriscience": "Academia / Research",
+};
+
+function lookupCompany(company) {
+  if (!company) return null;
+  const key = company.toLowerCase().trim();
+
+  // Disambiguate companies that share a name but are unrelated entities
+  // Merck & Co. (US, pharma) vs Merck KGaA / Merck Group (Germany, materials/life science)
+  if (key.includes("merck")) {
+    if (/merck group|merck kgaa|emd serono|emd group|merck millipore|sigma-aldrich/.test(key)) return "Chemicals / Materials";
+    return "Pharma"; // default: "Merck" alone or "Merck & Co." = US pharma
+  }
+
+  // Direct match
+  if (COMPANY_INDUSTRY[key]) return COMPANY_INDUSTRY[key];
+  // Partial match for long variants (e.g. "DuPont Electronics and Industrial")
+  for (const [co, ind] of Object.entries(COMPANY_INDUSTRY)) {
+    if (key.startsWith(co) || key.includes(co)) return ind;
+  }
+  return null;
+}
+
+// ── Keyword-based classifiers (fallback when no company match) ────────────
+function getSeniority(position) {
+  if (!position) return "Unknown";
+  const p = position.toLowerCase();
+  if (/\b(ceo|chief executive|president|founder|co-founder|cofounder|managing director|managing partner|principal partner|general partner|gp |chairman|owner)/.test(p)) return "C-Suite / Founder";
+  if (/\b(cto|cfo|coo|cmo|cpo|ciso|chief |svp|evp|executive vice|executive director)/.test(p)) return "C-Suite / Founder";
+  if (/\b(vp |vice president|senior vice|svp|partner(?!ship)|managing|head of|director)/.test(p)) return "VP / Director";
+  if (/\b(manager|lead|principal|senior manager|sr\. manager)/.test(p)) return "Manager / Lead";
+  if (/\b(engineer|scientist|analyst|consultant|associate|specialist|architect|researcher|developer)/.test(p)) return "Individual Contributor";
+  if (/\b(intern|student|trainee|assistant|coordinator|junior|jr\.)/.test(p)) return "Early Career";
+  if (/\b(advisor|board|emeritus|retired|fellow|professor|faculty|lecturer|instructor|adjunct)/.test(p)) return "Advisor / Academic";
+  return "Other";
+}
+
+// Tight VC / Investment detection — company-name driven, with title-based exclusions
+// for support functions (HR/Talent/Sales) even when employed at a real VC/PE firm,
+// and explicit exclusions for companies whose name contains "venture/capital" but
+// aren't actually investment firms (e.g. Spring Venture Group = insurance sales).
+const VC_NAME_FALSE_POSITIVES = ["spring venture group", "indorama ventures"];
+
+function isVentureCapital(company, position) {
+  const c = (company || "").toLowerCase();
+  const p = (position || "").toLowerCase();
+
+  if (VC_NAME_FALSE_POSITIVES.some(fp => c.includes(fp))) return false;
+
+  // Support/ops functions don't count as "investing" even inside a real VC/PE firm
+  if (/\b(talent|recruiting|hr\b|human resources|sales manager|wealth counselor)/.test(p)) return false;
+
+  const strongCompanyName =
+    /\bventures?\b/.test(c) ||
+    /\bcapital\b.*\b(partners|management|advisors)\b/.test(c) ||
+    /\b(angel|accelerator|incubator)\b/.test(c) ||
+    /\bvc\b/.test(c);
+
+  const strongTitle = /\b(venture (partner|capitalist)|general partner|managing partner.*(ventures|capital|fund)|investment (partner|director|manager|associate|banking)|private equity|fund manager|limited partner|\blp\b|corporate venture capital|venture capital\b)/.test(p);
+
+  return strongCompanyName || strongTitle;
+}
+
+function getIndustry(company, position) {
+  // 1. Company lookup takes priority
+  const fromLookup = lookupCompany(company);
+  if (fromLookup) return fromLookup;
+
+  // 2. Keyword fallback on combined text
+  const c = (company || "").toLowerCase();
+  const p = (position || "").toLowerCase();
+  const text = c + " " + p;
+  if (/\b(ai|artificial intelligence|machine learning|llm|genai|nlp|deeptech|deep tech|gpt|neural|ml )/.test(text)) return "AI / ML";
+  if (/\b(software|saas|cloud|platform|app |application|tech|digital|data|cyber|security|infosec|devops|api|b2b tech)/.test(text)) return "Software / Tech";
+  if (/\b(semicon|wafer|chip|semiconductor|electronics|pcb|printed circuit|photonics|hardware|embedded|fpga|asic|eda)/.test(c)) return "Semiconductors";
+  if (/\b(pharma|pharmaceutical|drug manufactur|drug development)/.test(text)) return "Pharma";
+  if (/\b(biotech|medicine|medical|health|clinical|bioscience|biopharma|genomic|diagnostics|therapeutic)/.test(text)) return "Biotech / Health";
+  if (isVentureCapital(c, p)) return "Venture / Investment";
+  if (/\b(bank|financial|finance|fintech|payment|insurance|wealth|trading|hedge)/.test(text)) return "Finance / Fintech";
+  if (/\b(chemical|polymer|material|sustainability|clean|green|circular|bio-based|bioplastic|composite|coating|adhesive|resin)/.test(text)) return "Chemicals / Materials";
+  if (/\b(energy|solar|wind|battery|fuel cell|hydrogen|power|renewable|cleantech|climate|carbon|esg)/.test(text)) return "Energy / Cleantech";
+  if (/\b(consulting|advisory|strategy|management consulting|mckinsey|bain|bcg|deloitte|kpmg|pwc|ey |ernst)/.test(text)) return "Consulting";
+  if (/\b(university|college|school|institute|academic|research|iit|mit|stanford|berkeley|education|professor|faculty)/.test(text)) return "Academia / Research";
+  if (/\b(coach|coaching|mentor)\b/.test(text)) return "Consulting";
+  if (/\b(infosolutions|infotech|software solutions|it solutions|it services|systems pvt|technologies pvt)\b/.test(text)) return "Software / Tech";
+  if (/\b(recruit|headhunt|search|staffing|talent|hr |human resources|people ops|executive search)/.test(text)) return "Recruiting / HR";
+  if (/\b(manufacturing|supply chain|logistics|ops|operations|production|industrial|factory|plant)/.test(text)) return "Manufacturing / Ops";
+  if (/\b(consumer|retail|ecommerce|brand|fmcg|cpg|food|beverage|apparel|fashion|textile)/.test(text)) return "Consumer / Retail";
+  if (/\b(media|marketing|content|pr |communications|advertising|agency|creative|design|ux|ui|podcast|publishing|author|video editor|content creator)/.test(text)) return "Media / Marketing";
+  if (/\b(law|legal|attorney|counsel|patent|ip |intellectual property)/.test(text)) return "Legal / IP";
+  if (/\b(nonprofit|ngo|foundation|social impact|charity|government|public sector|policy)/.test(text)) return "Nonprofit / Gov";
+  return "Other";
+}
+
+function getStatus(company, position) {
+  const c = (company || "").toLowerCase().trim();
+  const p = (position || "").toLowerCase().trim();
+  if (/^(self.employed|self\.?$|none|n\/a|-)$/.test(c) || c === "") {
+    if (/retired/.test(p)) return "Retired";
+    if (/freelance|independent|consultant/.test(p)) return "Independent / Freelance";
+    return "Independent / Freelance";
+  }
+  if (/^(retired)$/.test(c) || /^retired/.test(p)) return "Retired";
+  if (/^(freelance|freelancer)$/.test(c)) return "Independent / Freelance";
+  return null; // employed — no status tag needed
+}
+
+function getConnectionAge(connectedOn) {
+  if (!connectedOn) return "Unknown";
+  const parts = connectedOn.split(" ");
+  if (parts.length < 3) return "Unknown";
+  const year = parseInt(parts[2]);
+  if (isNaN(year)) return "Unknown";
+  const age = 2026 - year;
+  if (age <= 1) return "< 1 year";
+  if (age <= 3) return "1–3 years";
+  if (age <= 7) return "3–7 years";
+  if (age <= 12) return "7–12 years";
+  return "12+ years";
+}
+
+function getFunction(position) {
+  if (!position) return "Other";
+  const p = position.toLowerCase();
+  if (/process safety|hazop|lopa|functional safety|safety instrumented|occupational safety|hse manager|ehs manager|industrial safety/.test(p)) return "Process Safety";
+  if (/health safety/.test(p) && !/information|cyber/.test(p)) return "Process Safety";
+  if (/maintenance|reliability engineer|reliability manager|reliability & |& reliability|turnaround|shutdown|asset integrity|asset management|facilities|facility manage|instrumentation|condition monitoring|rotating equipment|predictive maintenance/.test(p)) return "Maintenance & Reliability";
+  if (/\b(engineer|engineering|r&d|research|scientist|science|lab|technical lead|technology lead|architecture|architect|developer|devops|software|hardware|data science|ml |ai |machine learning|cto|chief tech)/.test(p)) return "Engineering / R&D";
+  if (/\b(sales|account executive|account manager|business development|bd |revenue|gtm|go.to.market|commercial|quota|sdr|bdr|customer success|client partner)/.test(p)) return "Sales / BD";
+  if (/\b(marketing|brand|content|growth|demand gen|seo|campaigns|communications|pr |public relations|social media|creative director|cmo)/.test(p)) return "Marketing / Comms";
+  if (/\b(finance|financial|cfo|accounting|controller|fp&a|treasurer|budget|audit|tax|investment banking|capital markets|private equity|venture|fund|portfolio)/.test(p)) return "Finance";
+  if (/\b(operations|ops|supply chain|logistics|procurement|sourcing|manufacturing|production|plant|process|quality|lean|six sigma|coo)/.test(p)) return "Operations";
+  if (/\b(product manager|product management|product lead|head of product|chief product|cpo|product owner|product strategy|vp product)/.test(p)) return "Product";
+  if (/\b(hr |human resources|people ops|talent|recruiting|staffing|learning|organizational|culture|hrbp|chro|chief people)/.test(p)) return "HR / People";
+  if (/\b(legal|attorney|lawyer|counsel|compliance|regulatory|patent|ip |intellectual property|general counsel)/.test(p)) return "Legal / Compliance";
+  if (/\b(strategy|strategic|corporate development|m&a|mergers|acquisitions|transformation|innovation|chief of staff|business analyst)/.test(p)) return "Strategy / Corp Dev";
+  if (/\b(venture (partner|capitalist)|general partner|managing partner.*(ventures|capital|fund)|investment (partner|director|manager|associate|banking)|private equity|fund manager|limited partner|\blp\b|corporate venture capital|venture capital\b|^investor$|^investing\b)/.test(p)) return "Investing";
+  if (/\b(founder|co-founder|cofounder|owner|president.*ceo|ceo.*founder)/.test(p)) return "Founder / Owner";
+  if (/\b(consultant|consulting|advisory|advisor|coach|coaching|fractional|interim)/.test(p)) return "Consulting / Advisory";
+  if (/\b(professor|faculty|lecturer|instructor|researcher|academic|postdoc|phd student|research associate|fellow.*university|research scientist)/.test(p)) return "Academia";
+  if (/\b(design|ux|ui |user experience|creative|visual|graphic|brand design)/.test(p)) return "Design";
+  if (/\b(data|analytics|business intelligence|bi |insights|statistician|data engineer|data analyst)/.test(p)) return "Data / Analytics";
+  return "Other";
+}
+
+
+
+// ════════════════════════════════════════════════════════════════════
+// FILE PARSING — Connections.csv and Messages.csv, entirely client-side
+// ════════════════════════════════════════════════════════════════════
+
+function parseCSV(text) {
+  // Minimal RFC4180-ish CSV parser (handles quoted fields, commas/newlines inside quotes, "" escapes)
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ",") { row.push(field); field = ""; }
+      else if (c === "\n" || c === "\r") {
+        if (c === "\r" && text[i + 1] === "\n") i++;
+        row.push(field); field = "";
+        if (row.length > 1 || row[0] !== "") rows.push(row);
+        row = [];
+      } else field += c;
+    }
+  }
+  if (field !== "" || row.length > 0) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+function rowsToObjects(rows) {
+  if (rows.length === 0) return [];
+  const headers = rows[0].map(h => h.trim());
+  return rows.slice(1).map(r => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (r[i] || "").trim(); });
+    return obj;
+  });
+}
+
+function parseConnectionsCSV(text) {
+  // LinkedIn export prefixes Connections.csv with a few "Notes:" lines before the real header.
+  const headerIdx = text.indexOf("First Name,");
+  const csvText = headerIdx >= 0 ? text.slice(headerIdx) : text;
+  const rows = parseCSV(csvText);
+  const objs = rowsToObjects(rows);
+  return objs
+    .filter(o => (o["First Name"] || "").trim() || (o["Last Name"] || "").trim())
+    .map(o => ({
+      firstName: (o["First Name"] || "").trim(),
+      lastName: (o["Last Name"] || "").trim(),
+      url: (o["URL"] || "").trim(),
+      email: (o["Email Address"] || "").trim(),
+      company: (o["Company"] || "").trim(),
+      position: (o["Position"] || "").trim(),
+      connectedOn: (o["Connected On"] || "").trim(),
+    }));
+}
+
+function parseMessagesCSV(text, myProfileUrl) {
+  // LinkedIn Messages.csv columns: CONVERSATION ID, FROM, SENDER PROFILE URL, TO,
+  // RECIPIENT PROFILE URLS, DATE, ... We roll this up per 1:1 conversation partner.
+  const rows = parseCSV(text);
+  const objs = rowsToObjects(rows);
+  if (objs.length === 0) return {};
+
+  // Determine "me" by finding the most frequent SENDER PROFILE URL (export owner sends the most)
+  const senderCounts = {};
+  objs.forEach(o => {
+    const u = (o["SENDER PROFILE URL"] || "").trim();
+    if (u) senderCounts[u] = (senderCounts[u] || 0) + 1;
+  });
+  let me = myProfileUrl;
+  if (!me) {
+    me = Object.entries(senderCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+  }
+
+  const conv = {}; // conversationId -> { urls:Set, names:Set, dates:[], fromMe:n, fromThem:n }
+  objs.forEach(o => {
+    const cid = o["CONVERSATION ID"];
+    const senderUrl = (o["SENDER PROFILE URL"] || "").trim();
+    const senderName = (o["FROM"] || "").trim();
+    const recipientUrls = (o["RECIPIENT PROFILE URLS"] || "").trim();
+    const recipientName = (o["TO"] || "").trim();
+    const dateStr = (o["DATE"] || "").trim();
+    const date = dateStr ? new Date(dateStr.slice(0, 19).replace(" ", "T")) : null;
+    if (!cid || !date || isNaN(date.getTime())) return;
+
+    if (!conv[cid]) conv[cid] = { urls: new Set(), names: new Set(), dates: [], fromMe: 0, fromThem: 0 };
+    const c = conv[cid];
+    c.dates.push(date);
+    if (senderUrl === me) {
+      c.fromMe += 1;
+      if (recipientUrls) { c.urls.add(recipientUrls); c.names.add(recipientName); }
+    } else {
+      c.fromThem += 1;
+      if (senderUrl) { c.urls.add(senderUrl); c.names.add(senderName); }
+    }
+  });
+
+  // Keep only genuine 1:1 conversations (exactly one other-party URL), build per-person rollup
+  const lookup = {}; // url -> { name, total, fromMe, fromThem, lastDate, bidir }
+  Object.values(conv).forEach(c => {
+    if (c.urls.size !== 1) return; // skip group chats
+    const url = [...c.urls][0];
+    const name = [...c.names][0] || "";
+    const total = c.fromMe + c.fromThem;
+    const lastDate = new Date(Math.max(...c.dates.map(d => d.getTime())));
+    const bidir = c.fromMe > 0 && c.fromThem > 0;
+    // merge if same url appears across multiple conversation ids (rare but possible)
+    if (lookup[url]) {
+      lookup[url].total += total;
+      lookup[url].fromMe += c.fromMe;
+      lookup[url].fromThem += c.fromThem;
+      if (lastDate > lookup[url].lastDate) lookup[url].lastDate = lastDate;
+      lookup[url].bidir = lookup[url].bidir || bidir;
+    } else {
+      lookup[url] = { name, total, fromMe: c.fromMe, fromThem: c.fromThem, lastDate, bidir };
+    }
+  });
+  return lookup;
+}
+
+
+function getRelationshipStrengthFromLookup(url, messageLookup) {
+  const m = messageLookup[url];
+  if (!m) return "No messages";
+  if (!m.bidir) return "One-sided";
+  const daysSince = (Date.now() - m.lastDate.getTime()) / 86400000;
+  if (m.total >= 10 && daysSince < 365) return "Strong";
+  if (m.total >= 4 && daysSince < 730) return "Active";
+  if (m.total >= 2) return "Light";
+  return "Minimal";
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CUSTOM KEYWORD RULES — lets people extend Function categories without
+// touching code. A custom rule { category, keywords[] } is checked
+// before the built-in getFunction() classifier, so it takes priority.
+// ════════════════════════════════════════════════════════════════════
+
+function applyCustomRules(position, customRules) {
+  if (!position || customRules.length === 0) return null;
+  const p = position.toLowerCase();
+  for (const rule of customRules) {
+    if (!rule.category.trim() || rule.keywords.length === 0) continue;
+    for (const kw of rule.keywords) {
+      const k = kw.trim().toLowerCase();
+      if (k && p.includes(k)) return rule.category.trim();
+    }
+  }
+  return null;
+}
+
+function CustomRulesPanel({ customRules, setCustomRules }) {
+  const [newCategory, setNewCategory] = useState("");
+  const [newKeywords, setNewKeywords] = useState("");
+
+  const addRule = () => {
+    if (!newCategory.trim() || !newKeywords.trim()) return;
+    const keywords = newKeywords.split(",").map(k => k.trim()).filter(Boolean);
+    setCustomRules(prev => [...prev, { category: newCategory.trim(), keywords }]);
+    setNewCategory(""); setNewKeywords("");
+  };
+
+  const removeRule = (idx) => {
+    setCustomRules(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div style={{ background: "#F4F8F2", borderRadius: 10, padding: 14, marginBottom: 14 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#1A2A1A", marginBottom: 4 }}>Custom Function categories</div>
+      <div style={{ fontSize: 11, color: "#6A8A6A", marginBottom: 10 }}>
+        Add your own keyword-based categories (e.g. "Maintenance & Reliability" → "maintenance, reliability, turnaround"). These take priority over the built-in categories.
+      </div>
+
+      {customRules.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+          {customRules.map((rule, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", borderRadius: 8, padding: "6px 10px", fontSize: 12 }}>
+              <span style={{ fontWeight: 700, color: "#2A5740" }}>{rule.category}</span>
+              <span style={{ color: "#6A8A6A" }}>— {rule.keywords.join(", ")}</span>
+              <button onClick={() => removeRule(i)} style={{ marginLeft: "auto", border: "none", background: "none", color: "#c53030", cursor: "pointer", fontSize: 13 }}>✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 8 }}>
+        <input value={newCategory} onChange={e => setNewCategory(e.target.value)} placeholder="Category name"
+          style={{ flex: "0 0 160px", padding: "6px 10px", borderRadius: 7, border: "1.5px solid #C8D9C3", fontSize: 12 }} />
+        <input value={newKeywords} onChange={e => setNewKeywords(e.target.value)} placeholder="keywords, comma, separated"
+          style={{ flex: 1, padding: "6px 10px", borderRadius: 7, border: "1.5px solid #C8D9C3", fontSize: 12 }} />
+        <button onClick={addRule} style={{ padding: "6px 14px", borderRadius: 7, border: "none", background: "#2A5740", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Add</button>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// UPLOAD SCREEN — shown before any data is loaded
+// ════════════════════════════════════════════════════════════════════
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+function FileDropZone({ label, hint, fileName, onFile, accent, optional }) {
+  const [dragOver, setDragOver] = useState(false);
+  const inputId = `file-${label.replace(/\s+/g, "-")}`;
+
+  const handleFiles = (files) => {
+    if (files && files[0]) onFile(files[0]);
+  };
+
+  return (
+    <div
+      onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={e => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
+      style={{
+        border: `2px dashed ${dragOver ? accent : (fileName ? "#15803d" : "#C8D9C3")}`,
+        borderRadius: 14, padding: "28px 20px", textAlign: "center",
+        background: dragOver ? `${accent}10` : (fileName ? "#f0fdf4" : "#fff"),
+        transition: "all 0.15s", cursor: "pointer", flex: 1, minWidth: 240,
+      }}
+      onClick={() => document.getElementById(inputId).click()}
+    >
+      <input id={inputId} type="file" accept=".csv" style={{ display: "none" }}
+        onChange={e => handleFiles(e.target.files)} />
+      <div style={{ fontSize: 28, marginBottom: 8 }}>{fileName ? "✅" : "📄"}</div>
+      <div style={{ fontWeight: 700, fontSize: 14, color: "#1A2A1A", marginBottom: 4 }}>
+        {label} {optional && <span style={{ fontWeight: 400, color: "#6A8A6A", fontSize: 11 }}>(optional)</span>}
+      </div>
+      <div style={{ fontSize: 11, color: "#6A8A6A", marginBottom: 6 }}>{hint}</div>
+      {fileName ? (
+        <div style={{ fontSize: 12, color: "#15803d", fontWeight: 600 }}>{fileName}</div>
+      ) : (
+        <div style={{ fontSize: 12, color: accent, fontWeight: 600 }}>Click or drag CSV here</div>
+      )}
+    </div>
+  );
+}
+
+function UploadScreen({ onDataReady }) {
+  const [connectionsFile, setConnectionsFile] = useState(null);
+  const [messagesFile, setMessagesFile] = useState(null);
+  const [myProfileUrl, setMyProfileUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const canProcess = !!connectionsFile;
+
+  const processFiles = async () => {
+    setLoading(true); setError(null);
+    try {
+      const connText = await readFileAsText(connectionsFile);
+      const connections = parseConnectionsCSV(connText);
+      if (connections.length === 0) {
+        throw new Error("No connections found — make sure this is the LinkedIn Connections.csv file (with First Name, Last Name, URL, Company, Position columns).");
+      }
+
+      let messageLookup = {};
+      if (messagesFile) {
+        const msgText = await readFileAsText(messagesFile);
+        messageLookup = parseMessagesCSV(msgText, myProfileUrl.trim() || null);
+      }
+
+      onDataReady({ connections, messageLookup });
+    } catch (e) {
+      setError(e.message || String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "#EFF4ED" }}>
+      <div style={{ maxWidth: 680, width: "100%" }}>
+        <a href="https://www.mandalasustainablesolutions.com" target="_blank" rel="noopener noreferrer"
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, textDecoration: "none", marginBottom: 20 }}>
+          <div style={{ width: 30, height: 30, borderRadius: "50%", border: "1.5px solid #2A5740", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 14, color: "#2A5740", fontWeight: 400 }}>M</span>
+          </div>
+          <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "#3D5A3D", fontWeight: 600 }}>Mandala Sustainable Solutions</div>
+        </a>
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <div style={{ fontSize: 13, letterSpacing: 2, color: "#2A5740", fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>LinkedIn Network Explorer</div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: "#1A2A1A", margin: 0 }}>Turn your connections into a searchable network</h1>
+          <p style={{ fontSize: 14, color: "#3D5A3D", marginTop: 10, lineHeight: 1.5 }}>
+            Upload your LinkedIn data export. Everything runs in your browser — nothing is uploaded to any server.
+          </p>
+        </div>
+
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
+          <FileDropZone label="Connections.csv" hint="Required — your connection list"
+            fileName={connectionsFile?.name} onFile={setConnectionsFile} accent="#2A5740" />
+          <FileDropZone label="Messages.csv" hint="Adds relationship strength scoring"
+            fileName={messagesFile?.name} onFile={setMessagesFile} accent="#d97706" optional />
+        </div>
+
+        {messagesFile && (
+          <div style={{ marginBottom: 20, background: "#fff", borderRadius: 10, padding: "12px 16px", border: "1.5px solid #C8D9C3" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#6A8A6A", marginBottom: 4 }}>YOUR LINKEDIN PROFILE URL (optional)</div>
+            <input value={myProfileUrl} onChange={e => setMyProfileUrl(e.target.value)}
+              placeholder="https://www.linkedin.com/in/your-profile — auto-detected if left blank"
+              style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1.5px solid #C8D9C3", fontSize: 12, boxSizing: "border-box" }} />
+          </div>
+        )}
+
+        <div style={{ textAlign: "center" }}>
+          <button onClick={processFiles} disabled={!canProcess || loading} style={{
+            padding: "12px 32px", borderRadius: 12, border: "none",
+            background: canProcess ? "#2A5740" : "#ccc", color: "#fff",
+            fontSize: 15, fontWeight: 700, cursor: canProcess ? "pointer" : "default",
+          }}>{loading ? "Processing…" : "Build my network explorer"}</button>
+        </div>
+
+        {error && (
+          <div style={{ marginTop: 16, padding: "12px 16px", borderRadius: 10, background: "#fff0f0", border: "1.5px solid #f0c0c0", color: "#c53030", fontSize: 13 }}>
+            {error}
+          </div>
+        )}
+
+        <div style={{ marginTop: 28, fontSize: 12, color: "#6A8A6A", textAlign: "center", lineHeight: 1.6 }}>
+          Get your export from LinkedIn: Settings → Data privacy → Get a copy of your data → select "Connections" (and "Messages" if you want relationship scoring).
+        </div>
+
+        <div style={{ marginTop: 18, fontSize: 11, color: "#6A8A6A", textAlign: "center", lineHeight: 1.6, maxWidth: 540, marginLeft: "auto", marginRight: "auto" }}>
+          For personal networking and research use only. Your data stays in your browser and is never uploaded anywhere. Not affiliated with or endorsed by LinkedIn Corporation — use only data exported from your own account, in accordance with LinkedIn's Terms of Service.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+const SENIORITIES = ["C-Suite / Founder", "VP / Director", "Manager / Lead", "Individual Contributor", "Early Career", "Advisor / Academic", "Other", "Unknown"];
+const AGES = ["< 1 year", "1–3 years", "3–7 years", "7–12 years", "12+ years", "Unknown"];
+const STATUSES = ["Independent / Freelance", "Retired"];
+const RELATIONSHIP_STRENGTHS = ["Strong", "Active", "Light", "One-sided", "Minimal", "No messages"];
+const REL_STRENGTH_COLORS = {
+  "Strong": "#15803d", "Active": "#65a30d", "Light": "#ca8a04",
+  "One-sided": "#9333ea", "Minimal": "#94a3b8", "No messages": "#cbd5e1",
+};
+
+const INDUSTRY_COLORS = {
+  "AI / ML": "#7c3aed", "Software / Tech": "#2563eb", "Semiconductors": "#0891b2",
+  "Biotech / Health": "#16a34a", "Pharma": "#0d8a5f", "Venture / Investment": "#d97706", "Finance / Fintech": "#b45309",
+  "Chemicals / Materials": "#0d9488", "Energy / Cleantech": "#65a30d", "Consulting": "#9333ea",
+  "Academia / Research": "#4f46e5", "Recruiting / HR": "#db2777", "Manufacturing / Ops": "#dc2626",
+  "Consumer / Retail": "#ea580c", "Media / Marketing": "#e11d48", "Legal / IP": "#7c2d12",
+  "Nonprofit / Gov": "#374151", "Other": "#6b7280",
+};
+
+const FUNCTION_COLORS = {
+  "Engineering / R&D": "#1d4ed8", "Sales / BD": "#059669", "Marketing / Comms": "#e11d48",
+  "Finance": "#b45309", "Operations": "#dc2626", "Maintenance & Reliability": "#92400e",
+  "Process Safety": "#b45309", "Product": "#7c3aed", "HR / People": "#db2777",
+  "Legal / Compliance": "#7c2d12", "Strategy / Corp Dev": "#0f766e", "Investing": "#d97706",
+  "Founder / Owner": "#6d28d9", "Consulting / Advisory": "#9333ea", "Academia": "#4f46e5",
+  "Design": "#ec4899", "Data / Analytics": "#0891b2", "Other": "#6b7280",
+};
+
+function StatCard({ label, value }) {
+  return (
+    <div style={{ background: "#F4F8F2", borderRadius: 10, padding: "12px 16px", minWidth: 100 }}>
+      <div style={{ fontSize: 22, fontWeight: 700, color: "#2A5740" }}>{value}</div>
+      <div style={{ fontSize: 11, color: "#3D5A3D", marginTop: 2 }}>{label}</div>
+    </div>
+  );
+}
+
+function Chip({ label, color }) {
+  return (
+    <span style={{
+      display: "inline-block", background: (color || "#6b7280") + "18",
+      color: color || "#6b7280", border: `1px solid ${color || "#6b7280"}40`,
+      borderRadius: 6, padding: "2px 7px", fontSize: 10, fontWeight: 600, whiteSpace: "nowrap",
+    }}>{label}</span>
+  );
+}
+
+function ConnectionCard({ c }) {
+  const initials = ((c.firstName || "")[0] || "") + ((c.lastName || "")[0] || "");
+  const color = INDUSTRY_COLORS[c.industry] || "#6b7280";
+  const fnColor = FUNCTION_COLORS[c.func] || "#6b7280";
+  return (
+    <div style={{
+      background: "#fff", border: "1px solid #e8eaf0", borderRadius: 12,
+      padding: "14px 16px", display: "flex", gap: 12, alignItems: "flex-start",
+    }}
+    onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px #0001"}
+    onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
+    >
+      <div style={{
+        width: 40, height: 40, borderRadius: "50%", background: color + "20", color,
+        fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 14, flexShrink: 0, border: `2px solid ${color}40`,
+      }}>{initials.toUpperCase() || "?"}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <a href={c.url} target="_blank" rel="noopener noreferrer"
+            style={{ fontWeight: 700, fontSize: 14, color: "#1A2A1A", textDecoration: "none" }}
+            onMouseEnter={e => e.target.style.textDecoration = "underline"}
+            onMouseLeave={e => e.target.style.textDecoration = "none"}
+          >{c.name}</a>
+          {c.email && <span style={{ fontSize: 10, color: "#2A5740" }}>✉</span>}
+        </div>
+        <div style={{ fontSize: 12, color: "#3D5A3D", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {c.position || "—"}
+        </div>
+        <div style={{ fontSize: 11, color: "#6A8A6A", marginTop: 1 }}>{c.company || "—"}</div>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6 }}>
+          <Chip label={c.industry} color={color} />
+          <Chip label={c.func} color={fnColor} />
+          <Chip label={c.seniority} color="#374151" />
+          <Chip label={c.connectionAge} color="#6b7280" />
+          {c.status && <Chip label={c.status} color="#92400e" />}
+          <Chip label={c.relStrength} color={REL_STRENGTH_COLORS[c.relStrength] || "#6b7280"} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FilterSection({ title, items, active, onToggle, colorMap }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: "#6A8A6A", letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>{title}</div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {items.map(item => {
+          const color = colorMap ? colorMap[item] : undefined;
+          const isActive = active === item;
+          return (
+            <button key={item} onClick={() => onToggle(item)} style={{
+              padding: "5px 12px", borderRadius: 20,
+              border: isActive ? `2px solid ${color || "#2A5740"}` : "1.5px solid #ddd",
+              background: isActive ? (color || "#2A5740") + "18" : "#fff",
+              color: isActive ? (color || "#2A5740") : "#3D5A3D",
+              fontWeight: isActive ? 700 : 400,
+              fontSize: 12, cursor: "pointer", whiteSpace: "nowrap",
+            }}>{item}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Project Matcher (Phase 2) ─────────────────────────────────────────
+function buildConnectionSummary(connections) {
+  // Compact, token-efficient summary of each connection for the LLM
+  return connections.map(c => ({
+    id: c.id,
+    name: c.name,
+    title: c.position || "",
+    company: c.company || "",
+    industry: c.industry,
+    func: c.func,
+    seniority: c.seniority,
+    relStrength: c.relStrength,
+  }));
+}
+
+const MATCHER_SYSTEM_PROMPT = `You are helping someone find the most relevant people in their professional network for a specific project or activity they describe.
+
+You will be given a JSON array of their LinkedIn connections (with id, name, title, company, industry, function, seniority, and relationship strength), followed by a description of a project.
+
+Return ONLY valid JSON (no markdown fences, no preamble) in this exact shape:
+{"matches": [{"id": <connection id>, "reason": "<one sentence, specific, referencing their actual title/company/industry>"}]}
+
+Rules:
+- Rank the people by relevance to the project, best first. Return up to 15 — fewer if the pool is small or few are genuinely relevant.
+- Prioritize people whose industry, function, or title is directly relevant to the project.
+- When relevant, prefer people with stronger relationship strength (Strong/Active) as tiebreakers, but a perfect industry/function fit with weaker relationship strength still beats a poor fit with a strong relationship.
+- Be specific in "reason" — reference their actual role/company, not generic language.`;
+
+const OLLAMA_CONTEXT_WINDOW = 8192; // explicit num_ctx so Ollama doesn't silently fall back to its 2K default
+
+async function matchViaOllama(connections, projectDescription, ollamaUrl, ollamaModel) {
+  const summary = buildConnectionSummary(connections);
+  const prompt = `${MATCHER_SYSTEM_PROMPT}\n\nCONNECTIONS:\n${JSON.stringify(summary)}\n\nPROJECT:\n${projectDescription}`;
+
+  const res = await fetch(`${ollamaUrl}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: ollamaModel,
+      prompt,
+      stream: false,
+      format: "json",
+      options: { num_ctx: OLLAMA_CONTEXT_WINDOW },
+    }),
+  });
+  if (!res.ok) throw new Error(`Ollama error ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return JSON.parse(data.response);
+}
+
+async function matchViaClaude(connections, projectDescription, apiKey, claudeModel) {
+  const summary = buildConnectionSummary(connections);
+  const userMsg = `CONNECTIONS:\n${JSON.stringify(summary)}\n\nPROJECT:\n${projectDescription}`;
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: claudeModel,
+      max_tokens: 2000,
+      system: MATCHER_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userMsg }],
+    }),
+  });
+  if (!res.ok) throw new Error(`Claude API error ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  const text = data.content.map(b => b.text || "").join("").trim();
+  const clean = text.replace(/```json|```/g, "").trim();
+  return JSON.parse(clean);
+}
+
+async function checkOllamaConnection(ollamaUrl, ollamaModel) {
+  // Returns { status: "connected"|"model-missing"|"unreachable", models?: string[] }
+  try {
+    const res = await fetch(`${ollamaUrl}/api/tags`, { method: "GET" });
+    if (!res.ok) return { status: "unreachable" };
+    const data = await res.json();
+    const models = (data.models || []).map(m => m.name);
+    const modelFound = models.some(m => m === ollamaModel || m.startsWith(ollamaModel + ":"));
+    return { status: modelFound ? "connected" : "model-missing", models };
+  } catch (e) {
+    return { status: "unreachable" };
+  }
+}
+
+function ProjectMatcher({ connections, totalCount }) {
+  const [provider, setProvider] = useState("ollama");
+  const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
+  const [ollamaModel, setOllamaModel] = useState("llama3.1");
+  const [apiKey, setApiKey] = useState("");
+  const [claudeModel, setClaudeModel] = useState("claude-sonnet-4-6");
+  const [projectDescription, setProjectDescription] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [results, setResults] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [ollamaStatus, setOllamaStatus] = useState(null); // null | "checking" | "connected" | "model-missing" | "unreachable"
+  const [ollamaAvailableModels, setOllamaAvailableModels] = useState([]);
+
+  useEffect(() => {
+    if (provider !== "ollama" || !ollamaUrl.trim()) { setOllamaStatus(null); return; }
+    setOllamaStatus("checking");
+    const handle = setTimeout(async () => {
+      const result = await checkOllamaConnection(ollamaUrl.trim(), ollamaModel.trim());
+      setOllamaStatus(result.status);
+      setOllamaAvailableModels(result.models || []);
+    }, 600); // debounce so it doesn't fire on every keystroke
+    return () => clearTimeout(handle);
+  }, [provider, ollamaUrl, ollamaModel]);
+
+  const connectionById = useMemo(() => {
+    const map = {};
+    connections.forEach(c => { map[c.id] = c; });
+    return map;
+  }, [connections]);
+
+  const runMatch = async () => {
+    if (!projectDescription.trim()) { setError("Describe a project first."); return; }
+    if (provider === "claude" && !apiKey.trim()) { setError("Enter your Claude API key, or switch to Ollama."); return; }
+    setLoading(true); setError(null); setResults(null);
+    try {
+      const out = provider === "ollama"
+        ? await matchViaOllama(connections, projectDescription, ollamaUrl, ollamaModel)
+        : await matchViaClaude(connections, projectDescription, apiKey, claudeModel);
+      if (!out || !Array.isArray(out.matches)) throw new Error("Unexpected response shape from model.");
+      setResults(out.matches);
+    } catch (e) {
+      setError(e.message || String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ background: "#fff", border: "1.5px solid #C8D9C3", borderRadius: 14, padding: 18, marginBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#1A2A1A" }}>🎯 Project Matcher</div>
+          <div style={{ fontSize: 12, color: "#6A8A6A", marginTop: 2 }}>Describe a project — AI suggests the most relevant people in your network</div>
+        </div>
+        <button onClick={() => setShowSettings(s => !s)} style={{
+          fontSize: 11, padding: "5px 10px", borderRadius: 8, border: "1.5px solid #ddd",
+          background: showSettings ? "#2A574015" : "#fff", color: "#3D5A3D", cursor: "pointer", fontWeight: 600,
+        }}>{showSettings ? "Hide" : "Settings"} ⚙</button>
+      </div>
+
+      <div style={{
+        display: "flex", alignItems: "center", gap: 6, fontSize: 12, marginBottom: 14,
+        padding: "8px 12px", borderRadius: 8,
+        background: connections.length < totalCount ? "#eef4ff" : "#F4F8F2",
+        color: connections.length < totalCount ? "#2A5740" : "#6A8A6A",
+      }}>
+        {connections.length < totalCount ? (
+          <>🔎 Searching <strong>{connections.length.toLocaleString()}</strong> filtered connection{connections.length !== 1 ? "s" : ""} (out of {totalCount.toLocaleString()} total) — adjust the filters below to narrow or widen this pool.</>
+        ) : (
+          <>Searching all <strong>{totalCount.toLocaleString()}</strong> connections — use the filters below to narrow the pool first if you're using Ollama, since local models work best with a few hundred candidates or fewer.</>
+        )}
+        {provider === "ollama" && connections.length > 300 && (
+          <span style={{ color: "#ca8a04", fontWeight: 600 }}> ⚠ {connections.length.toLocaleString()} is a lot for a local model — expect this to be slow.</span>
+        )}
+      </div>
+
+      {showSettings && (
+        <div style={{ background: "#F4F8F2", borderRadius: 10, padding: 14, marginBottom: 14 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            <button onClick={() => setProvider("ollama")} style={{
+              flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer",
+              border: provider === "ollama" ? "2px solid #2A5740" : "1.5px solid #ddd",
+              background: provider === "ollama" ? "#2A574015" : "#fff", color: provider === "ollama" ? "#2A5740" : "#3D5A3D",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            }}>
+              🖥 Ollama (local)
+              {provider === "ollama" && ollamaStatus === "connected" && <span title="Connected">🟢</span>}
+              {provider === "ollama" && ollamaStatus === "model-missing" && <span title="Model not pulled">🟡</span>}
+              {provider === "ollama" && ollamaStatus === "unreachable" && <span title="Unreachable">🔴</span>}
+              {provider === "ollama" && ollamaStatus === "checking" && <span title="Checking">⏳</span>}
+            </button>
+            <button onClick={() => setProvider("claude")} style={{
+              flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer",
+              border: provider === "claude" ? "2px solid #d97706" : "1.5px solid #ddd",
+              background: provider === "claude" ? "#d9770615" : "#fff", color: provider === "claude" ? "#d97706" : "#3D5A3D",
+            }}>☁ Claude API</button>
+          </div>
+
+          {provider === "ollama" ? (
+            <div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, color: "#6A8A6A", marginBottom: 3, fontWeight: 700 }}>OLLAMA URL</div>
+                  <input value={ollamaUrl} onChange={e => setOllamaUrl(e.target.value)}
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: 7, border: "1.5px solid #C8D9C3", fontSize: 12, boxSizing: "border-box" }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, color: "#6A8A6A", marginBottom: 3, fontWeight: 700 }}>MODEL NAME</div>
+                  <input value={ollamaModel} onChange={e => setOllamaModel(e.target.value)} placeholder="llama3.1"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: 7, border: "1.5px solid #C8D9C3", fontSize: 12, boxSizing: "border-box" }} />
+                </div>
+              </div>
+
+              <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+                {ollamaStatus === "checking" && <><span>⏳</span><span style={{ color: "#6A8A6A" }}>Checking connection…</span></>}
+                {ollamaStatus === "connected" && <><span>🟢</span><span style={{ color: "#15803d", fontWeight: 600 }}>Connected — model "{ollamaModel}" is available</span></>}
+                {ollamaStatus === "model-missing" && (
+                  <span style={{ color: "#ca8a04" }}>
+                    🟡 Ollama is running, but model "{ollamaModel}" isn't pulled yet. Run <code style={{ background: "#fff3cd", padding: "1px 4px", borderRadius: 3 }}>ollama pull {ollamaModel}</code>
+                    {ollamaAvailableModels.length > 0 && <> — available: {ollamaAvailableModels.join(", ")}</>}
+                  </span>
+                )}
+                {ollamaStatus === "unreachable" && (
+                  <span style={{ color: "#c53030" }}>
+                    🔴 Can't reach Ollama at this URL. Make sure <code style={{ background: "#fff0f0", padding: "1px 4px", borderRadius: 3 }}>ollama serve</code> is running, and that CORS is allowed (try <code style={{ background: "#fff0f0", padding: "1px 4px", borderRadius: 3 }}>OLLAMA_ORIGINS=*</code>).
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, color: "#6A8A6A", marginBottom: 3, fontWeight: 700 }}>CLAUDE API KEY</div>
+                  <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="sk-ant-..."
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: 7, border: "1.5px solid #C8D9C3", fontSize: 12, boxSizing: "border-box" }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, color: "#6A8A6A", marginBottom: 3, fontWeight: 700 }}>MODEL</div>
+                  <input value={claudeModel} onChange={e => setClaudeModel(e.target.value)}
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: 7, border: "1.5px solid #C8D9C3", fontSize: 12, boxSizing: "border-box" }} />
+                </div>
+              </div>
+              <div style={{ fontSize: 10, color: "#6A8A6A", lineHeight: 1.4 }}>
+                Your key is only stored in this browser tab's memory — it is never saved to disk, sent anywhere except api.anthropic.com, or embedded in this file. It clears when you close the tab.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <textarea
+        value={projectDescription}
+        onChange={e => setProjectDescription(e.target.value)}
+        placeholder="Describe the project or activity, e.g. 'I'm raising a seed round for an agentic AI startup in renewable energy O&M and need warm intros to climate/industrial VCs and IPP operators...'"
+        rows={3}
+        style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid #C8D9C3", fontSize: 13, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box", marginBottom: 10 }}
+      />
+
+      <button onClick={runMatch} disabled={loading} style={{
+        padding: "9px 20px", borderRadius: 10, border: "none",
+        background: loading ? "#aab" : "#2A5740", color: "#fff",
+        fontSize: 13, fontWeight: 700, cursor: loading ? "default" : "pointer",
+      }}>{loading ? "Thinking…" : "Find Matches"}</button>
+
+      {error && (
+        <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "#fff0f0", border: "1.5px solid #f0c0c0", color: "#c53030", fontSize: 12 }}>
+          {error}
+        </div>
+      )}
+
+      {results && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#6A8A6A", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
+            {results.length} match{results.length !== 1 ? "es" : ""} found
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {results.map((r, i) => {
+              const c = connectionById[r.id];
+              if (!c) return null;
+              const color = INDUSTRY_COLORS[c.industry] || "#6b7280";
+              return (
+                <div key={r.id} style={{ display: "flex", gap: 10, background: "#F4F8F2", borderRadius: 10, padding: "10px 14px" }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#2A5740", minWidth: 22 }}>{i + 1}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 700, fontSize: 13, color: "#1A2A1A", textDecoration: "none" }}>{c.name}</a>
+                      <Chip label={c.industry} color={color} />
+                      <Chip label={c.func} color={FUNCTION_COLORS[c.func] || "#6b7280"} />
+                    </div>
+                    <div style={{ fontSize: 11, color: "#3D5A3D", marginTop: 2 }}>{c.position} @ {c.company}</div>
+                    <div style={{ fontSize: 12, color: "#444", marginTop: 4, fontStyle: "italic" }}>{r.reason}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function enrichConnections(connections, messageLookup, customRules) {
+  return connections.map((c, i) => {
+    const customFunc = applyCustomRules(c.position, customRules);
+    return {
+      ...c,
+      id: i,
+      name: (c.firstName + " " + c.lastName).trim(),
+      industry: getIndustry(c.company, c.position),
+      seniority: getSeniority(c.position),
+      connectionAge: getConnectionAge(c.connectedOn),
+      func: customFunc || getFunction(c.position),
+      status: getStatus(c.company, c.position),
+      relStrength: getRelationshipStrengthFromLookup(c.url, messageLookup),
+    };
+  });
+}
+
+function NetworkExplorer({ rawConnections, messageLookup, hasMessages, onReset }) {
+  const [customRules, setCustomRules] = useState([]);
+  const [showCustomRules, setShowCustomRules] = useState(false);
+
+  const ENRICHED = useMemo(
+    () => enrichConnections(rawConnections, messageLookup, customRules),
+    [rawConnections, messageLookup, customRules]
+  );
+
+  const INDUSTRIES = useMemo(() => [...new Set(ENRICHED.map(c => c.industry))].sort(), [ENRICHED]);
+  const FUNCTIONS = useMemo(() => {
+    const builtIn = ["Engineering / R&D", "Sales / BD", "Marketing / Comms", "Finance",
+      "Operations", "Maintenance & Reliability", "Process Safety",
+      "Product", "HR / People", "Legal / Compliance",
+      "Strategy / Corp Dev", "Investing", "Founder / Owner",
+      "Consulting / Advisory", "Academia", "Design", "Data / Analytics", "Other"];
+    const custom = customRules.map(r => r.category.trim()).filter(Boolean);
+    return [...new Set([...custom, ...builtIn])];
+  }, [customRules]);
+
+  const [search, setSearch] = useState("");
+  const [industryFilter, setIndustryFilter] = useState(null);
+  const [seniorityFilter, setSeniorityFilter] = useState(null);
+  const [ageFilter, setAgeFilter] = useState(null);
+  const [funcFilter, setFuncFilter] = useState(null);
+  const [hasEmail, setHasEmail] = useState(false);
+  const [statusFilter, setStatusFilter] = useState(null);
+  const [relStrengthFilter, setRelStrengthFilter] = useState(null);
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 30;
+
+  const toggle = (setter, current) => (val) => { setter(current === val ? null : val); setPage(1); };
+
+  const filtered = useMemo(() => {
+    let result = ENRICHED;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(c =>
+        c.name.toLowerCase().includes(q) ||
+        (c.company || "").toLowerCase().includes(q) ||
+        (c.position || "").toLowerCase().includes(q)
+      );
+    }
+    if (industryFilter) result = result.filter(c => c.industry === industryFilter);
+    if (seniorityFilter) result = result.filter(c => c.seniority === seniorityFilter);
+    if (ageFilter) result = result.filter(c => c.connectionAge === ageFilter);
+    if (funcFilter) result = result.filter(c => c.func === funcFilter);
+    if (hasEmail) result = result.filter(c => c.email);
+    if (statusFilter) result = result.filter(c => c.status === statusFilter);
+    if (relStrengthFilter) result = result.filter(c => c.relStrength === relStrengthFilter);
+    return result;
+  }, [ENRICHED, search, industryFilter, seniorityFilter, ageFilter, funcFilter, hasEmail, statusFilter, relStrengthFilter]);
+
+  const paginated = useMemo(() => filtered.slice(0, page * PER_PAGE), [filtered, page]);
+
+  const stats = useMemo(() => {
+    const byIndustry = {};
+    filtered.forEach(c => { byIndustry[c.industry] = (byIndustry[c.industry] || 0) + 1; });
+    const top = Object.entries(byIndustry).sort((a,b) => b[1]-a[1])[0];
+    return { total: filtered.length, topIndustry: top ? top[0] : "—", withEmail: filtered.filter(c => c.email).length };
+  }, [filtered]);
+
+  const resetAll = useCallback(() => {
+    setSearch(""); setIndustryFilter(null); setSeniorityFilter(null);
+    setAgeFilter(null); setFuncFilter(null); setHasEmail(false); setStatusFilter(null); setRelStrengthFilter(null); setPage(1);
+  }, []);
+
+  const activeFilters = [industryFilter, seniorityFilter, ageFilter, funcFilter, statusFilter, relStrengthFilter, hasEmail || null].filter(Boolean).length;
+
+  return (
+    <div style={{ fontFamily: "'Inter', system-ui, sans-serif", background: "#EFF4ED", minHeight: "100vh" }}>
+      <div style={{ background: "linear-gradient(135deg, #1A2A1A 0%, #2A5740 100%)", padding: "16px 28px", color: "#fff" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <a href="https://www.mandalasustainablesolutions.com" target="_blank" rel="noopener noreferrer"
+            style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", border: "1.5px solid rgba(255,255,255,0.6)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 16, color: "#fff", fontWeight: 400 }}>M</span>
+            </div>
+            <div style={{ color: "#fff" }}>
+              <div style={{ fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", opacity: 0.85, lineHeight: 1.3 }}>Mandala Sustainable Solutions</div>
+              <div style={{ fontSize: 13, fontWeight: 500, letterSpacing: "0.02em" }}>Network Explorer</div>
+            </div>
+          </a>
+          <button onClick={onReset} style={{ fontSize: 11, padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.12)", color: "#fff", cursor: "pointer", fontWeight: 600 }}>Upload different files</button>
+        </div>
+      </div>
+      <div style={{ background: "linear-gradient(135deg, #1A2A1A 0%, #2A5740 100%)", padding: "8px 28px 20px", color: "#fff" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: -0.5 }}>Connection Explorer</h1>
+          <div style={{ opacity: 0.75, fontSize: 13, marginTop: 4 }}>{ENRICHED.length.toLocaleString()} connections · industry · function · seniority{hasMessages ? " · relationship strength" : ""}</div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "20px 16px" }}>
+        <ProjectMatcher connections={filtered} totalCount={ENRICHED.length} />
+
+        <div style={{ display: "flex", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+          <StatCard label="Showing" value={stats.total.toLocaleString()} />
+          <StatCard label="With email" value={stats.withEmail.toLocaleString()} />
+          <StatCard label="Top industry" value={stats.topIndustry.split("/")[0].trim()} />
+          {activeFilters > 0 && <StatCard label="Filters active" value={activeFilters} />}
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <button onClick={() => setShowCustomRules(s => !s)} style={{
+            fontSize: 11, padding: "5px 10px", borderRadius: 8, border: "1.5px solid #ddd",
+            background: showCustomRules ? "#2A574015" : "#fff", color: "#3D5A3D", cursor: "pointer", fontWeight: 600,
+          }}>{showCustomRules ? "Hide" : "Customize Function categories"} ⚙</button>
+        </div>
+        {showCustomRules && <CustomRulesPanel customRules={customRules} setCustomRules={setCustomRules} />}
+
+        <div style={{ position: "relative", marginBottom: 16 }}>
+          <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 16, color: "#6A8A6A" }}>🔍</span>
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+            placeholder="Search by name, company, or role…"
+            style={{ width: "100%", padding: "12px 16px 12px 40px", borderRadius: 10, border: "1.5px solid #C8D9C3", fontSize: 14, outline: "none", boxSizing: "border-box", background: "#fff" }}
+          />
+        </div>
+
+        <FilterSection title="Function" items={FUNCTIONS} active={funcFilter} onToggle={toggle(setFuncFilter, funcFilter)} colorMap={FUNCTION_COLORS} />
+        <FilterSection title="Industry" items={INDUSTRIES} active={industryFilter} onToggle={toggle(setIndustryFilter, industryFilter)} colorMap={INDUSTRY_COLORS} />
+        <FilterSection title="Seniority" items={SENIORITIES} active={seniorityFilter} onToggle={toggle(setSeniorityFilter, seniorityFilter)} />
+        <FilterSection title="Connection age" items={AGES} active={ageFilter} onToggle={toggle(setAgeFilter, ageFilter)} />
+        {hasMessages && <FilterSection title="Relationship strength" items={RELATIONSHIP_STRENGTHS} active={relStrengthFilter} onToggle={toggle(setRelStrengthFilter, relStrengthFilter)} colorMap={REL_STRENGTH_COLORS} />}
+        <FilterSection title="Status" items={STATUSES} active={statusFilter} onToggle={toggle(setStatusFilter, statusFilter)} />
+
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#6A8A6A", letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>More</div>
+          <button onClick={() => { setHasEmail(!hasEmail); setPage(1); }} style={{
+            padding: "5px 12px", borderRadius: 20,
+            border: hasEmail ? "2px solid #2A5740" : "1.5px solid #ddd",
+            background: hasEmail ? "#2A574018" : "#fff",
+            color: hasEmail ? "#2A5740" : "#3D5A3D",
+            fontWeight: hasEmail ? 700 : 400, fontSize: 12, cursor: "pointer",
+          }}>✉ Has email</button>
+        </div>
+
+        {activeFilters > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <button onClick={resetAll} style={{ padding: "6px 14px", borderRadius: 8, border: "1.5px solid #f0c0c0", background: "#fff0f0", color: "#c53030", fontSize: 12, cursor: "pointer", fontWeight: 600 }}>✕ Clear all filters</button>
+          </div>
+        )}
+
+        <div style={{ fontSize: 12, color: "#3D5A3D", marginBottom: 12 }}>
+          Showing {Math.min(paginated.length, stats.total).toLocaleString()} of {stats.total.toLocaleString()} connections
+          {stats.total < ENRICHED.length && <span style={{ color: "#2A5740", fontWeight: 600 }}> (filtered from {ENRICHED.length.toLocaleString()})</span>}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 10, marginBottom: 20 }}>
+          {paginated.map(c => <ConnectionCard key={c.id} c={c} />)}
+        </div>
+
+        {paginated.length < filtered.length && (
+          <div style={{ textAlign: "center", paddingBottom: 40 }}>
+            <button onClick={() => setPage(p => p + 1)} style={{ padding: "10px 28px", borderRadius: 10, background: "#2A5740", color: "#fff", border: "none", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>
+              Load more ({filtered.length - paginated.length} remaining)
+            </button>
+          </div>
+        )}
+
+        {filtered.length === 0 && (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "#6A8A6A" }}>
+            <div style={{ fontSize: 40 }}>🔍</div>
+            <div style={{ fontSize: 16, marginTop: 12 }}>No connections match your filters</div>
+            <button onClick={resetAll} style={{ marginTop: 12, padding: "8px 20px", borderRadius: 8, border: "none", background: "#2A5740", color: "#fff", cursor: "pointer" }}>Clear filters</button>
+          </div>
+        )}
+
+        <footer style={{ marginTop: 36, paddingTop: 18, borderTop: "1px solid #C8D9C3", display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 12, color: "#3D5A3D" }}>
+            Built by <a href="https://www.mandalasustainablesolutions.com/principal" target="_blank" rel="noopener noreferrer" style={{ color: "#2A5740", textDecoration: "none", fontWeight: 500 }}>Andy Kannurpatti</a> · Mandala Sustainable Solutions
+          </div>
+          <div style={{ fontSize: 11, color: "#6A8A6A", lineHeight: 1.6, maxWidth: 760 }}>
+            This tool is provided for personal networking and research use only. All processing happens locally in your browser — your LinkedIn data is never uploaded, transmitted, or stored on any server. Industry, function, seniority, and relationship classifications are inferred automatically from job titles and message history and may be inaccurate or incomplete; verify before relying on them for outreach decisions. If you use the AI Project Matcher with the Claude API, your connection data (names, titles, companies) is sent to Anthropic's API for that single request only — review Anthropic's usage policies before enabling this. This tool is not affiliated with or endorsed by LinkedIn Corporation. Use of LinkedIn data exported from your own account is subject to LinkedIn's Terms of Service; do not use this tool to process data you are not authorized to access, or for bulk scraping, spam, or unsolicited outreach.
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [data, setData] = useState(null); // { connections, messageLookup } | null
+
+  if (!data) {
+    return <UploadScreen onDataReady={setData} />;
+  }
+
+  return (
+    <NetworkExplorer
+      rawConnections={data.connections}
+      messageLookup={data.messageLookup}
+      hasMessages={Object.keys(data.messageLookup).length > 0}
+      onReset={() => setData(null)}
+    />
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(React.createElement(App));
+})();
+
+</script>
+</body>
+</html>
