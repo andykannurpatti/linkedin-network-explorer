@@ -87,4 +87,4 @@ The entire app is in the single `index.html` file — open it in any text editor
 
 ## License
 
-Provided as-is for personal and research use. See [Intended use & limitations](#intended-use--limitations) above.
+MIT License — see [LICENSE](./LICENSE). You're free to use, copy, modify, and redistribute this tool, including commercially, as long as the copyright notice is retained. See [Intended use & limitations](#intended-use--limitations) above for usage expectations regarding LinkedIn data and the disclaimers that apply.
